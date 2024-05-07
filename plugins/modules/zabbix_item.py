@@ -599,13 +599,13 @@ class Item(ZabbixBase):
                     
             if int(rule["type"]) in list([1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25, 28, 29]):
                 if not rule["params"]:
-                    self._module.fail_json(msg="Option 'params' required in combination with the preprocessing type %s" % list(preprocessing_type_types.keys())[rule["type"] + 1])
+                    self._module.fail_json(msg="Option 'params' required in combination with the preprocessing type %s" % list(preprocessing_type_types.keys())[rule["type"] - 1])
             else:
                 rule["params"] = ""
 
             if int(rule["type"]) in list([1,5,6,7,8,9,10,11,12,13,14,15,16,17,18,22,23,24,26,27,28,29]):
                 if not rule["error_handler"]:
-                    self._module.fail_json(msg="Option 'error_handler' required in combination with the preprocessing type %s" % list(preprocessing_type_types.keys())[int(rule["type"])])
+                    self._module.fail_json(msg="Option 'error_handler' required in combination with the preprocessing type %s" % list(preprocessing_type_types.keys())[int(rule["type"]) - 1])
                 else:
                     if rule["error_handler"] in list(preprocessing_error_handler_types.keys()):
                         rule["error_handler"] = str(preprocessing_error_handler_types[rule["error_handler"]])
