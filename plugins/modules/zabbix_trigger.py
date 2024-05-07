@@ -66,7 +66,7 @@ class Trigger(ZabbixBase):
                 if description is not None:
                     parameters["comments"] = description
                 if severity is not None:
-                    parameters["severity"] = severity
+                    parameters["priority"] = severity
                 if problem_mode is not None:
                     parameters["type"] = problem_mode
                 if url is not None:
@@ -87,6 +87,7 @@ class Trigger(ZabbixBase):
                     parameters["tags"] = tags
                 if dependencies is not None:
                     parameters["dependencies"] = dependencies
+                self._zapi.trigger.create(parameters)
         except Exception as e:
             self._module.fail_json(msg="Failed to create trigger %s: %s" % (trigger_name, e))
 
@@ -105,7 +106,7 @@ class Trigger(ZabbixBase):
                 if description is not None:
                     parameters["comments"] = description
                 if severity is not None:
-                    parameters["severity"] = severity
+                    parameters["priority"] = severity
                 if problem_mode is not None:
                     parameters["type"] = problem_mode
                 if url is not None:
@@ -139,8 +140,6 @@ class Trigger(ZabbixBase):
             self._module.fail_json(msg="Failed to delete trigger %s: %s" % (trigger_name, e))
 
     def check_all_properties(self, trigger_exist, trigger_id, trigger_name, status, expression, event_name, operational_data, description, severity, problem_mode, url, url_name, ok_event_generation, recovery_expression, ok_event_closes, match_tag, manual_close, tags, dependencies, host_id, host_name):
-        if trigger_name and trigger_name != trigger_exist["description"]:
-            return True
         if status and int(status) != int(trigger_exist["status"]):
             return True
         if expression and expression != trigger_exist["expression"]:
@@ -151,7 +150,7 @@ class Trigger(ZabbixBase):
             return True
         if description and description != trigger_exist["comments"]:
             return True
-        if severity and int(severity) != int(trigger_exist["severity"]):
+        if severity and int(severity) != int(trigger_exist["priority"]):
             return True
         if problem_mode and int(problem_mode) != int(trigger_exist["type"]):
             return True
@@ -182,26 +181,26 @@ def main():
         trigger_name=dict(type="str", required=True),
         host_name=dict(type="str", required=True),
         state=dict(type="str", default="present", choices=["present", "absent"]),
-        status=dict(type="str", default="enabled", choices=["enabled", "disabled"]),
+        status=dict(type="str", choices=["enabled", "disabled"]),
         expression=dict(type="str"),
         event_name=dict(type="str"),
         operational_data=dict(type="str"),
         description=dict(type="str"),
-        severity=dict(type="str", default="not_classified", choices=["not_classified", "information", "warning", "average", "high", "disaster"]),
-        problem_mode=dict(type="str", default="single", choices=["single", "multiple"]),
+        severity=dict(type="str", choices=["not_classified", "information", "warning", "average", "high", "disaster"]),
+        problem_mode=dict(type="str", choices=["single", "multiple"]),
         url=dict(type="str"),
         url_name=dict(type="str"),
-        ok_event_generation=dict(type="str", default="expression", choices=["expression", "recovery_expression", "none"]),
+        ok_event_generation=dict(type="str", choices=["expression", "recovery_expression", "none"]),
         recovery_expression=dict(type="str"),
-        ok_event_closes=dict(type="str", default="all_problems", choices=["all_problems", "match_tag_values"]),
+        ok_event_closes=dict(type="str", choices=["all_problems", "match_tag_values"]),
         match_tag=dict(type="str", required_if=[["ok_event_closes", 1, ["match_tag_values"]]]),
-        manual_close=dict(type="bool", default=False),
+        manual_close=dict(type="bool",),
         tags=dict(type="list", elements="dict", default=[], options=dict(
             tag=dict(type="str", required=True),
             value=dict(type="str", required=True)
         )),
         dependencies=dict(type="list", elements="dict", options=dict(
-            host_name=dict(type="str", default=host_name),
+            host_name=dict(type="str"),
             trigger_name=dict(type="str", required=True)
         ))
     ))
@@ -236,7 +235,7 @@ def main():
     trigger = Trigger(module)
 
     # check if trigger exist
-    is_trigger_exist = trigger.is_trigger_exist(trigger_name, host_name)[0]
+    is_trigger_exist = trigger.is_trigger_exist(trigger_name, host_name)
 
     # find host id
     host_id = ""
@@ -247,7 +246,8 @@ def main():
     else:
         module.fail_json(msg="host_name must not be empty.")
 
-    dependencies = trigger.construct_dependencies(dependencies)
+    if dependencies:
+        dependencies = trigger.construct_dependencies(dependencies)
 
     # check expression when creating new trigger
     if not is_trigger_exist and not expression:
@@ -298,9 +298,9 @@ def main():
             trigger.delete_trigger(trigger_id, trigger_name)
         else:
             # update trigger if something has changed
-            if trigger.check_all_properties(is_trigger_exist, trigger_id, trigger_name, status, expression, event_name, operational_data, description, severity, problem_mode, url, url_name, ok_event_generation, recovery_expression, ok_event_closes, match_tag, manual_close, tags, dependencies, host_id, host_name):
+            if trigger.check_all_properties(is_trigger_exist[0], trigger_id, trigger_name, status, expression, event_name, operational_data, description, severity, problem_mode, url, url_name, ok_event_generation, recovery_expression, ok_event_closes, match_tag, manual_close, tags, dependencies, host_id, host_name):
                 # update the trigger
-                trigger.update_trigger(is_trigger_exist, trigger_id, trigger_name, status, expression, event_name, operational_data, description, severity, problem_mode, url, url_name, ok_event_generation, recovery_expression, ok_event_closes, match_tag, manual_close, tags, dependencies, host_id, host_name)
+                trigger.update_trigger(is_trigger_exist[0], trigger_id, trigger_name, status, expression, event_name, operational_data, description, severity, problem_mode, url, url_name, ok_event_generation, recovery_expression, ok_event_closes, match_tag, manual_close, tags, dependencies, host_id, host_name)
 
                 module.exit_json(changed=True, result="Successfully updated trigger %s on host %s" % (trigger_name, host_name))
             else:
@@ -313,7 +313,7 @@ def main():
             module.fail_json(msg='Specify a host when creating trigger "%s"' % trigger_name)
 
         # create trigger
-        trigger_id = trigger.add_trigger()
+        trigger_id = trigger.add_trigger(trigger_name, status, expression, event_name, operational_data, description, severity, problem_mode, url, url_name, ok_event_generation, recovery_expression, ok_event_closes, match_tag, manual_close, tags, dependencies, host_id, host_name)
 
         module.exit_json(changed=True, result="Successfully added trigger %s on host %s" % (trigger_name, host_name))
 
