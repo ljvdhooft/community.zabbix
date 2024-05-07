@@ -718,7 +718,7 @@ class Item(ZabbixBase):
         except Exception as e:
             self._module.fail_json(msg="Failed to create item %s: %s" % (item_name, e))
     
-    def update_item(self, item_name, item_id, key, type, status, update_interval, interfaceid, url, allow_traps, authtype, convert_json, description, follow_redirects, formula, headers, history, http_proxy, inventory_link, ipmi_sensor, jmx_endpoint, logtimefmt, master_itemid, script, item_parameters, password, body_type, body, privatekey, publickey, url_query, http_method, retrieve_mode, snmp_oid, db_query, ssl_cert_file, ssl_key_file, ssl_key_password, status_codes, timeout, allowed_hosts, trends, units, username, verify_host, verify_peer, tags, preprocessing):
+    def update_item(self, item_name, item_id, key, type, status, value_type, update_interval, interfaceid, url, allow_traps, authtype, convert_json, description, follow_redirects, formula, headers, history, http_proxy, inventory_link, ipmi_sensor, jmx_endpoint, logtimefmt, master_itemid, script, item_parameters, password, body_type, body, privatekey, publickey, url_query, http_method, retrieve_mode, snmp_oid, db_query, ssl_cert_file, ssl_key_file, ssl_key_password, status_codes, timeout, allowed_hosts, trends, units, username, verify_host, verify_peer, tags, preprocessing):
         try:
             if self._module.check_mode:
                 self._module.exit_json(changed=True)
@@ -730,6 +730,8 @@ class Item(ZabbixBase):
                     parameters["key_"] = key
                 if type is not None:
                     parameters["type"] = type                
+                if value_type is not None:
+                    parameters["value_type"] = value_type
                 if update_interval is not None:
                     parameters["delay"] = update_interval
                 if interfaceid is not None:
@@ -826,7 +828,7 @@ class Item(ZabbixBase):
         except Exception as e:
             self._module.fail_json(msg="Failed to delete item %s: %s" % (item_name, e))
 
-    def check_all_properties(self, item_id, key, host_id, host_name, type, status, update_interval, interfaceid, url, allow_traps, authtype, convert_json, description, follow_redirects, formula, headers, history, http_proxy, inventory_link, ipmi_sensor, jmx_endpoint, logtimefmt, master_itemid, script, parameters, password, body_type, body, privatekey, publickey, url_query, http_method, retrieve_mode, snmp_oid, db_query, ssl_cert_file, ssl_key_file, ssl_key_password, status_codes, timeout, allowed_hosts, trends, units, username, verify_host, verify_peer, tags, preprocessing):
+    def check_all_properties(self, item_id, key, host_id, host_name,  type, status, value_type, update_interval, interfaceid, url, allow_traps, authtype, convert_json, description, follow_redirects, formula, headers, history, http_proxy, inventory_link, ipmi_sensor, jmx_endpoint, logtimefmt, master_itemid, script, parameters, password, body_type, body, privatekey, publickey, url_query, http_method, retrieve_mode, snmp_oid, db_query, ssl_cert_file, ssl_key_file, ssl_key_password, status_codes, timeout, allowed_hosts, trends, units, username, verify_host, verify_peer, tags, preprocessing):
         exist_item = self._zapi.item.get({"output": "extend", "selectPreprocessing": "extend", "selectTags": "extend", "filter": {"itemid": item_id}})[0]
         if host_id and host_id != int(exist_item["hostid"]):
             return True
@@ -835,6 +837,8 @@ class Item(ZabbixBase):
         if type and int(type) != int(exist_item["type"]):
             return True
         if status and int(status) != int(exist_item["status"]):
+            return True
+        if value_type and int(value_type) != int(exist_item["value_type"]):
             return True
         if update_interval and update_interval != exist_item["delay"]:
             return True
@@ -1288,9 +1292,9 @@ def main():
             module.exit_json(changed=True, result="Successfully deleted item %s" % item_name)
         else:            
             # update item
-            if item.check_all_properties(item_id, key, host_id, host_name, type, status, update_interval, interface, url, allow_traps, authtype, convert_json, description, follow_redirects, formula, headers, history, http_proxy, inventory_link, ipmi_sensor, jmx_endpoint, logtimefmt, master_item, script, parameters, password, body_type, body, privatekey, publickey, url_query, http_method, retrieve_mode, snmp_oid, db_query, ssl_cert_file, ssl_key_file, ssl_key_password, status_codes, timeout, allowed_hosts, trends, units, username, verify_host, verify_peer, tags, preprocessing):
+            if item.check_all_properties(item_id, key, host_id, host_name, type, status, value_type, update_interval, interface, url, allow_traps, authtype, convert_json, description, follow_redirects, formula, headers, history, http_proxy, inventory_link, ipmi_sensor, jmx_endpoint, logtimefmt, master_item, script, parameters, password, body_type, body, privatekey, publickey, url_query, http_method, retrieve_mode, snmp_oid, db_query, ssl_cert_file, ssl_key_file, ssl_key_password, status_codes, timeout, allowed_hosts, trends, units, username, verify_host, verify_peer, tags, preprocessing):
                 # update the item
-                item.update_item(item_name, item_id, key, type, status, update_interval, interface, url, allow_traps, authtype, convert_json, description, follow_redirects, formula, headers, history, http_proxy, inventory_link, ipmi_sensor, jmx_endpoint, logtimefmt, master_item, script, parameters, password, body_type, body, privatekey, publickey, url_query, http_method, retrieve_mode, snmp_oid, db_query, ssl_cert_file, ssl_key_file, ssl_key_password, status_codes, timeout, allowed_hosts, trends, units, username, verify_host, verify_peer, tags, preprocessing)
+                item.update_item(item_name, item_id, key, type, status, value_type, update_interval, interface, url, allow_traps, authtype, convert_json, description, follow_redirects, formula, headers, history, http_proxy, inventory_link, ipmi_sensor, jmx_endpoint, logtimefmt, master_item, script, parameters, password, body_type, body, privatekey, publickey, url_query, http_method, retrieve_mode, snmp_oid, db_query, ssl_cert_file, ssl_key_file, ssl_key_password, status_codes, timeout, allowed_hosts, trends, units, username, verify_host, verify_peer, tags, preprocessing)
 
                 module.exit_json(changed=True, result="Successfully updated item %s on host %s" % (item_name, host_name))
             else:
